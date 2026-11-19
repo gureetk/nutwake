@@ -6,6 +6,7 @@ import (
 
 	"github.com/gureetk/nutwake/internal/config"
 	"github.com/gureetk/nutwake/internal/events"
+	"github.com/gureetk/nutwake/internal/humanize"
 	"github.com/gureetk/nutwake/internal/probe"
 )
 
@@ -45,7 +46,7 @@ func (m *Monitor) applyNode(n *node, ok bool, now time.Time) {
 			downFor := now.Sub(n.since)
 			n.state, n.since = NodeUp, now
 			m.emit(events.LevelOK, events.KindNodeUp, n.cfg.Name,
-				fmt.Sprintf("%s is up again after %s.", n.cfg.Name, duration(downFor)),
+				fmt.Sprintf("%s is up again after %s.", n.cfg.Name, humanize.Duration(downFor)),
 				map[string]any{"down_for_s": int(downFor.Seconds())}, now)
 		}
 		return

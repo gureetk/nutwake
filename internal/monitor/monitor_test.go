@@ -573,18 +573,3 @@ func TestRunStopsWhenCancelled(t *testing.T) {
 		t.Error("Run should have polled")
 	}
 }
-
-func TestDurationFormat(t *testing.T) {
-	cases := map[time.Duration]string{
-		4 * time.Second:                       "4 s",
-		12*time.Minute + 20*time.Second:       "12 min",
-		time.Hour + 5*time.Minute:             "1 h 05 min",
-		26*time.Hour + 3*time.Minute:          "26 h 03 min",
-		59*time.Second + 600*time.Millisecond: "1 min",
-	}
-	for d, want := range cases {
-		if got := duration(d); got != want {
-			t.Errorf("duration(%v) = %q, want %q", d, got, want)
-		}
-	}
-}
