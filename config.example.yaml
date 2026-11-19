@@ -1,0 +1,57 @@
+# nutwake example configuration.
+# Copy to /etc/nutwake/config.yaml and edit. Only `nodes` is required; every
+# other setting shows its default value.
+
+# Where the status page listens. The page is read-only and has no login, so
+# keep it behind your firewall. Use 0.0.0.0:8080 to reach it from other machines.
+listen: 127.0.0.1:8080
+
+# Where nutwake keeps its event history and state (must be writable).
+data_dir: /var/lib/nutwake
+
+# How often the UPS and the nodes are checked.
+poll_interval: 5s
+
+# The NUT server (upsd) that talks to the UPS.
+nut:
+  host: 127.0.0.1
+  port: 3493
+  ups: ups # the name in /etc/nut/ups.conf
+  timeout: 3s
+
+# How a node is checked for being up: "icmp" (ping) or "tcp:<port>", for
+# example "tcp:8006" for the Proxmox web UI. A node can override this with its
+# own `probe:` line.
+probe:
+  default: icmp
+  timeout: 1s
+  down_after: 2 # failed checks in a row before a node counts as down
+
+# The machines to shut down and wake. `mac` is the MAC of the network card that
+# has Wake-on-LAN enabled (`ethtool -P <nic>` prints the permanent address).
+nodes:
+  - name: pve1
+    host: 192.168.1.10
+    mac: "aa:bb:cc:dd:ee:01"
+  - name: pve2
+    host: 192.168.1.11
+    mac: "aa:bb:cc:dd:ee:02"
+
+# When power comes back after the nodes were shut down.
+wake:
+  min_battery: 15 # percent. Keep this well above the UPS's low-battery level.
+  delay: 1m # power must have been steady this long first
+  max_wait: 2h # wake anyway after this long even if the battery is still low; 0 turns it off
+  stagger: 5s # gap between the first wake packets, so the nodes do not start together
+  retry_interval: 90s # send another packet if a node has not answered
+  give_up_after: 20m # stop trying for a node after this long
+  broadcast: 255.255.255.255:9 # use your subnet's broadcast address, e.g. 192.168.1.255:9
+
+# The helper that upsmon runs as its SHUTDOWNCMD (`nutwake shutdown`).
+shutdown:
+  wait_for_nodes: 5m # longest to wait for the nodes to power off before halting this machine
+  command: [/sbin/shutdown, -h, "+0"]
+
+history:
+  max_events: 5000
+  clock_sync_timeout: 5m # a Pi has no clock battery; events wait this long for the time to be set
