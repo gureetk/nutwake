@@ -14,7 +14,7 @@ func TestOutageRoundTrip(t *testing.T) {
 	if o, err := s.LoadOutage(); o != nil || err != nil {
 		t.Fatalf("empty store: %v, %v", o, err)
 	}
-	want := &Outage{Started: time.Date(2026, 11, 13, 19, 52, 8, 0, time.UTC), StartCharge: 100, MinCharge: 43, NodesUp: []string{"kaios", "node-b"}}
+	want := &Outage{Started: time.Date(2026, 11, 13, 19, 52, 8, 0, time.UTC), StartCharge: 100, MinCharge: 43, NodesUp: []string{"kaios", "node-b"}, LowBattery: true, LastSeen: time.Date(2026, 11, 13, 20, 10, 0, 0, time.UTC)}
 	if err := s.SaveOutage(want); err != nil {
 		t.Fatal(err)
 	}
