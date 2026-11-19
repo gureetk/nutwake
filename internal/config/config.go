@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -132,6 +133,12 @@ func Default() Config {
 		History: History{MaxEvents: 5000, ClockSyncTimeout: 5 * time.Minute, SampleKeep: 7 * 24 * time.Hour},
 	}
 }
+
+// EventsFile is the event history, shared by the daemon and the shutdown helper.
+func (c *Config) EventsFile() string { return filepath.Join(c.DataDir, "events.jsonl") }
+
+// SamplesFile is the battery and node history behind the chart.
+func (c *Config) SamplesFile() string { return filepath.Join(c.DataDir, "samples.jsonl") }
 
 // Load reads, parses and validates the file at path.
 func Load(path string) (*Config, error) {

@@ -113,3 +113,14 @@ func TestParseMAC(t *testing.T) {
 		t.Error("expected error for short MAC")
 	}
 }
+
+func TestDataFiles(t *testing.T) {
+	c := Default()
+	c.DataDir = "/srv/nw"
+	if got := c.EventsFile(); got != "/srv/nw/events.jsonl" {
+		t.Errorf("EventsFile = %q", got)
+	}
+	if got := c.SamplesFile(); got != "/srv/nw/samples.jsonl" {
+		t.Errorf("SamplesFile = %q", got)
+	}
+}
