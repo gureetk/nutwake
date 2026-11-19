@@ -186,16 +186,3 @@ func (m *Monitor) fix(t time.Time) time.Time {
 func (m *Monitor) emit(level events.Level, kind, node, msg string, data map[string]any, at time.Time) {
 	m.events.AddEvent(events.Event{Time: at, Kind: kind, Level: level, Node: node, Message: msg, Data: data})
 }
-
-// duration formats d for people: "45 s", "12 min", "1 h 05 min".
-func duration(d time.Duration) string {
-	d = d.Round(time.Second)
-	switch {
-	case d < time.Minute:
-		return fmt.Sprintf("%d s", int(d.Seconds()))
-	case d < time.Hour:
-		return fmt.Sprintf("%d min", int(d.Minutes()))
-	}
-	h := int(d.Hours())
-	return fmt.Sprintf("%d h %02d min", h, int(d.Minutes())-h*60)
-}

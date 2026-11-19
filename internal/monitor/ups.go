@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gureetk/nutwake/internal/events"
+	"github.com/gureetk/nutwake/internal/humanize"
 	"github.com/gureetk/nutwake/internal/nut"
 	"github.com/gureetk/nutwake/internal/state"
 )
@@ -108,7 +109,7 @@ func (m *Monitor) onBattery(r *nut.Reading, st nut.State, charge float64, haveCh
 		m.outage = o
 		msg := "Power lost. Running on battery."
 		if haveCharge {
-			msg = fmt.Sprintf("Power lost. Running on battery at %s%%.", pct(charge))
+			msg = fmt.Sprintf("Power lost. Running on battery at %s%%.", humanize.Percent(charge))
 		}
 		data := map[string]any{"nodes_up": o.NodesUp}
 		if haveCharge {
@@ -124,7 +125,7 @@ func (m *Monitor) onBattery(r *nut.Reading, st nut.State, charge float64, haveCh
 		o.LowBattery = true
 		msg := "The UPS reports a low battery."
 		if haveCharge {
-			msg = fmt.Sprintf("The UPS reports a low battery (%s%%).", pct(charge))
+			msg = fmt.Sprintf("The UPS reports a low battery (%s%%).", humanize.Percent(charge))
 		}
 		data := map[string]any{}
 		if haveCharge {
@@ -175,13 +176,13 @@ func (m *Monitor) closeOutage() {
 		"min_charge":   o.MinCharge,
 		"nodes_up":     o.NodesUp,
 	}
-	msg := fmt.Sprintf("Power is back after %s.", duration(dur))
+	msg := fmt.Sprintf("Power is back after %s.", humanize.Duration(dur))
 	if approx {
 		data["approximate"] = true
-		msg = fmt.Sprintf("Power is back. The outage lasted about %s (this Pi was off for part of it).", duration(dur))
+		msg = fmt.Sprintf("Power is back. The outage lasted about %s (this Pi was off for part of it).", humanize.Duration(dur))
 	}
 	if o.MinCharge > 0 || o.StartCharge > 0 {
-		msg += fmt.Sprintf(" The battery fell to %s%%.", pct(o.MinCharge))
+		msg += fmt.Sprintf(" The battery fell to %s%%.", humanize.Percent(o.MinCharge))
 	}
 	m.emit(events.LevelOK, events.KindPowerRestored, "", msg, data, c.at)
 
@@ -210,5 +211,3 @@ func (m *Monitor) saveOutage(now time.Time, force bool) {
 	}
 	o.persisted, o.lastSave, o.savedMin = true, now, o.MinCharge
 }
-
-func pct(v float64) string { return fmt.Sprintf("%.0f", v) }

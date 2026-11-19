@@ -63,20 +63,25 @@ type OutageStatus struct {
 	LowBattery  bool      `json:"low_battery,omitempty"`
 }
 
-// Snapshot returns a copy of the current state, safe to keep and to encode.
-func (m *Monitor) Snapshot() Snapshot {
+// Brief is the part of a Snapshot that does not grow with time: cheap enough
+// for the waker to read every second.
+type Brief struct {
+	Started time.Time    `json:"started"`
+	UPS     UPSStatus    `json:"ups"`
+	Nodes   []NodeStatus `json:"nodes"`
+}
+
+// Brief returns the UPS and node status without the battery samples.
+func (m *Monitor) Brief() Brief {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.briefLocked()
+}
 
-	s := Snapshot{
-		At:       m.fix(m.now()),
-		Started:  m.fix(m.started),
-		ClockSet: m.clock.Trusted(),
-		Nodes:    make([]NodeStatus, 0, len(m.nodes)),
-		Samples:  make([]Sample, len(m.samples)),
-	}
+func (m *Monitor) briefLocked() Brief {
+	b := Brief{Started: m.fix(m.started), Nodes: make([]NodeStatus, 0, len(m.nodes))}
 	u := m.power
-	s.UPS = UPSStatus{
+	b.UPS = UPSStatus{
 		Reachable:      u.reachable,
 		State:          u.state,
 		Since:          m.fix(u.since),
@@ -84,22 +89,39 @@ func (m *Monitor) Snapshot() Snapshot {
 		ReplaceBattery: u.rb,
 	}
 	if r := u.reading; r != nil {
-		s.UPS.Status = r.Vars["ups.status"]
-		s.UPS.Model = r.First("device.model", "ups.model")
-		s.UPS.Charge = num(r, "battery.charge")
-		s.UPS.ChargeLow = num(r, "battery.charge.low")
-		s.UPS.RuntimeSeconds = num(r, "battery.runtime")
-		s.UPS.Load = num(r, "ups.load")
-		s.UPS.InputVoltage = num(r, "input.voltage")
+		b.UPS.Status = r.Vars["ups.status"]
+		b.UPS.Model = r.First("device.model", "ups.model")
+		b.UPS.Charge = num(r, "battery.charge")
+		b.UPS.ChargeLow = num(r, "battery.charge.low")
+		b.UPS.RuntimeSeconds = num(r, "battery.runtime")
+		b.UPS.Load = num(r, "ups.load")
+		b.UPS.InputVoltage = num(r, "input.voltage")
 	}
 	for _, n := range m.nodes {
 		st := n.state
 		if st == "" {
 			st = NodeUnknown
 		}
-		s.Nodes = append(s.Nodes, NodeStatus{
+		b.Nodes = append(b.Nodes, NodeStatus{
 			Name: n.cfg.Name, Host: n.cfg.Host, Probe: n.probe, State: st, Since: m.fix(n.since),
 		})
+	}
+	return b
+}
+
+// Snapshot returns a copy of the current state, safe to keep and to encode.
+func (m *Monitor) Snapshot() Snapshot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	b := m.briefLocked()
+	s := Snapshot{
+		At:       m.fix(m.now()),
+		Started:  b.Started,
+		ClockSet: m.clock.Trusted(),
+		UPS:      b.UPS,
+		Nodes:    b.Nodes,
+		Samples:  make([]Sample, len(m.samples)),
 	}
 	// A power cut whose end is waiting for the clock has ended as far as the
 	// reader is concerned.
