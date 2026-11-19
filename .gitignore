@@ -1,0 +1,9 @@
+# build output
+/nutwake
+/dist/
+*.test
+coverage.out
+
+# local config and state
+/config.yaml
+/data/
