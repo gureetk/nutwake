@@ -1,6 +1,11 @@
-# nutwake
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img alt="nutwake" src="docs/logo.svg" height="72">
+  </picture>
+</h1>
 
-A NUT-aware shutdown helper, Wake-on-LAN and a status page, in one small Go binary.
+<p align="center">A NUT-aware shutdown helper, Wake-on-LAN and a status page, in one small Go binary.</p>
 
 It is for a homelab where a Raspberry Pi watches a UPS (through [NUT](https://networkupstools.org/)) and other machines, the nodes, run on that UPS. When the power goes out:
 
