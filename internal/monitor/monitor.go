@@ -24,6 +24,7 @@ import (
 	"github.com/gureetk/nutwake/internal/events"
 	"github.com/gureetk/nutwake/internal/nut"
 	"github.com/gureetk/nutwake/internal/probe"
+	"github.com/gureetk/nutwake/internal/samples"
 	"github.com/gureetk/nutwake/internal/state"
 )
 
@@ -31,10 +32,9 @@ const (
 	// upsDownAfter is how many failed reads in a row count as "cannot reach
 	// the UPS". One missed read during a busy moment is not worth an event.
 	upsDownAfter = 3
-	// sampleEvery spaces the battery samples while nothing is happening.
-	sampleEvery = 30 * time.Second
-	// maxSamples bounds memory: about three and a half days at one every 30s.
-	maxSamples = 10080
+	// heartbeatEvery is how often a sample is recorded when nothing changes,
+	// so a gap in the record shows the Pi was off.
+	heartbeatEvery = 5 * time.Minute
 	// saveEvery limits how often a power cut in progress is rewritten to disk.
 	saveEvery = 30 * time.Second
 	// trimEvery is how often the event file is cut back to history.max_events.
@@ -50,6 +50,8 @@ type Reader interface {
 type Deps struct {
 	Events *events.Store
 	State  *state.Store
+	// Samples keeps the battery and node history for the chart. Optional.
+	Samples *samples.Store
 	// Clock gates timestamps. Nil means the clock can always be trusted.
 	Clock *clocksync.Clock
 	// UPS defaults to a NUT client built from the config.
@@ -69,6 +71,7 @@ type Monitor struct {
 	store  *state.Store
 	clock  *clocksync.Clock
 	now    func() time.Time
+	smp    *samples.Store
 
 	mu      sync.Mutex
 	started time.Time
@@ -76,7 +79,7 @@ type Monitor struct {
 	power   upsState
 	outage  *outage
 	closing *closing
-	samples []Sample
+	rec     recorder
 }
 
 // New builds a Monitor and loads a power cut left over from a previous run.
@@ -85,7 +88,7 @@ func New(cfg *config.Config, d Deps) (*Monitor, error) {
 		return nil, errors.New("monitor: Events and State are required")
 	}
 	m := &Monitor{
-		cfg: cfg, reader: d.UPS, events: d.Events, store: d.State, clock: d.Clock, now: d.Now,
+		cfg: cfg, reader: d.UPS, events: d.Events, store: d.State, clock: d.Clock, now: d.Now, smp: d.Samples,
 	}
 	if m.now == nil {
 		m.now = time.Now
@@ -127,6 +130,11 @@ func (m *Monitor) Run(ctx context.Context) {
 		if now := time.Now(); now.After(nextTrim) && m.clock.Ready() {
 			if err := m.events.Trim(m.cfg.History.MaxEvents); err != nil {
 				slog.Warn("monitor: cannot trim history", "err", err)
+			}
+			if m.smp != nil {
+				if err := m.smp.Trim(m.cfg.History.SampleKeep, m.fix(m.now())); err != nil {
+					slog.Warn("monitor: cannot trim the recorder file", "err", err)
+				}
 			}
 			nextTrim = now.Add(trimEvery)
 		}
@@ -170,9 +178,13 @@ func (m *Monitor) Poll(ctx context.Context) {
 	}
 	m.applyUPS(reading, readErr, now)
 	m.settle(now)
+	m.record(now)
 	m.mu.Unlock()
 
 	m.events.Flush()
+	if m.smp != nil {
+		m.smp.Flush()
+	}
 }
 
 // fix returns t corrected for a clock that was set after t was captured.

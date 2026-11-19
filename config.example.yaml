@@ -55,3 +55,4 @@ shutdown:
 history:
   max_events: 5000
   clock_sync_timeout: 5m # a Pi has no clock battery; events wait this long for the time to be set
+  sample_keep: 168h # how long the battery and node history behind the chart is kept (7 days)
