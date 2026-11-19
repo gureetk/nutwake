@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>nutwake</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232A6F86'/%3E%3Cpath d='M18 5L8 18h6l-2 9 10-14h-6z' fill='%23FAB219'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="page">
+  <div id="banner" class="banner" role="status" hidden></div>
+  <noscript><p class="banner">This page draws its charts with JavaScript. The same data is at <a href="/api/status">/api/status</a>.</p></noscript>
+
+  <header class="top" id="top"></header>
+  <section class="status" id="status" aria-labelledby="headline"></section>
+  <section class="wake" id="wake" aria-labelledby="wake-title" hidden></section>
+  <section class="recorder" id="recorder" aria-labelledby="recorder-title"></section>
+
+  <div class="two">
+    <section class="outages" id="outages" aria-labelledby="outages-title"></section>
+    <section class="log" id="log" aria-labelledby="log-title"></section>
+  </div>
+
+  <section class="settings" id="settings"></section>
+  <footer class="foot" id="foot"></footer>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

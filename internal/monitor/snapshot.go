@@ -28,6 +28,7 @@ type UPSStatus struct {
 	Since  time.Time `json:"since,omitempty"`
 	Error  string    `json:"error,omitempty"`
 
+	Manufacturer   string   `json:"manufacturer,omitempty"`
 	Model          string   `json:"model,omitempty"`
 	Charge         *float64 `json:"charge,omitempty"`
 	ChargeLow      *float64 `json:"charge_low,omitempty"`
@@ -82,6 +83,7 @@ func (m *Monitor) briefLocked() Brief {
 	}
 	if r := u.reading; r != nil {
 		b.UPS.Status = r.Vars["ups.status"]
+		b.UPS.Manufacturer = r.First("device.mfr", "ups.mfr")
 		b.UPS.Model = r.First("device.model", "ups.model")
 		b.UPS.Charge = num(r, "battery.charge")
 		b.UPS.ChargeLow = num(r, "battery.charge.low")

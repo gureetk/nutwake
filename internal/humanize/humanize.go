@@ -22,3 +22,35 @@ func Duration(d time.Duration) string {
 
 // Percent formats a percentage without decimals: 96.4 becomes "96".
 func Percent(v float64) string { return fmt.Sprintf("%.0f", v) }
+
+// Ago says how long ago something was: "just now", "12 min ago", "5 h ago",
+// "5 days ago".
+func Ago(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%d min ago", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%d h ago", int(d.Hours()))
+	}
+	return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+}
+
+// List joins names for a sentence: "a", "a and b", "a, b and c".
+func List(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	}
+	out := ""
+	for i, n := range names[:len(names)-1] {
+		if i > 0 {
+			out += ", "
+		}
+		out += n
+	}
+	return out + " and " + names[len(names)-1]
+}
