@@ -215,6 +215,8 @@ make cross    # static binaries for arm64, armv7 and x86-64 in dist/
 go run ./cmd/nutwake demo -scene battery
 ```
 
+Releases are built by the `release` workflow. Push a tag (`git tag v0.1.0 && git push origin v0.1.0`), or open the Actions tab, choose `release`, and give it the tag to create. It runs `make check`, builds the three binaries, writes `SHA256SUMS` and publishes the release. The commit has to be on main. A version that starts with `v0.`, or has a hyphen like `v1.0.0-rc1`, is marked as a pre-release. If `.github/releases/<tag>.md` exists it becomes the release notes; otherwise GitHub writes them from the merged pull requests.
+
 The packages under `internal/` each do one thing: `nut` reads the UPS, `probe` checks nodes, `wol` builds and sends the packet, `monitor` watches, `waker` wakes, `shutdown` is the helper, `events`, `samples` and `state` keep the history, `clocksync` copes with a Pi that has no clock battery, `web` is the page, and `demo` builds the made-up history. `cmd/nutwake` puts them together.
 
 ## Licence

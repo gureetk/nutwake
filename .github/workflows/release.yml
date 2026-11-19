@@ -1,0 +1,82 @@
+name: release
+
+# Builds the binaries and publishes a GitHub release.
+#
+# Start it by pushing a tag such as v0.1.0, or from the Actions tab with
+# "Run workflow" and the tag to create. A version that starts with v0. or has a
+# hyphen (v1.0.0-rc1) is published as a pre-release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to create, for example v0.1.0
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to create the release and its tag
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Check the tag and the commit
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::'$TAG' is not a version like v1.2.3 or v1.2.3-rc1"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::error::this commit is not on main"
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null &&
+             [ "$(git rev-parse "$TAG^{commit}")" != "$(git rev-parse HEAD)" ]; then
+            echo "::error::the tag $TAG already exists on a different commit"
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::a release for $TAG already exists"
+            exit 1
+          fi
+
+      - name: Test
+        run: make check
+
+      - name: Build
+        run: |
+          make cross VERSION="$TAG"
+          cd dist
+          sha256sum nutwake-linux-amd64 nutwake-linux-arm64 nutwake-linux-armv7 > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Publish
+        run: |
+          args=()
+          case "$TAG" in
+            v0.* | *-*) args+=(--prerelease) ;;
+          esac
+          notes=".github/releases/$TAG.md"
+          if [ -f "$notes" ]; then
+            args+=(--notes-file "$notes")
+          else
+            args+=(--generate-notes)
+          fi
+          gh release create "$TAG" \
+            dist/nutwake-linux-amd64 dist/nutwake-linux-arm64 dist/nutwake-linux-armv7 dist/SHA256SUMS \
+            --title "$TAG" --target "$(git rev-parse HEAD)" "${args[@]}"
