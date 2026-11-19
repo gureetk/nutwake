@@ -25,6 +25,12 @@ type Outage struct {
 	MinCharge   float64   `json:"min_charge"`
 	// NodesUp lists the nodes that were up when power was lost.
 	NodesUp []string `json:"nodes_up"`
+	// LowBattery is set once the UPS has reported a low battery, so a
+	// restart of the daemon does not announce it a second time.
+	LowBattery bool `json:"low_battery,omitempty"`
+	// LastSeen is the last time the daemon saw the outage still going. It
+	// tells how long the Pi was off if the outage ends while it is down.
+	LastSeen time.Time `json:"last_seen,omitempty"`
 }
 
 // Pending lists nodes that were shut down by a power cut and must be woken.
