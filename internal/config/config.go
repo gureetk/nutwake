@@ -103,6 +103,9 @@ type History struct {
 	// waiting for the system clock to be set (a Pi has no battery-backed
 	// clock). After this they are written with the clock as it is.
 	ClockSyncTimeout time.Duration `yaml:"clock_sync_timeout"`
+	// SampleKeep is how long the battery and node history behind the chart
+	// is kept.
+	SampleKeep time.Duration `yaml:"sample_keep"`
 }
 
 // Default returns a Config holding the built-in defaults.
@@ -126,7 +129,7 @@ func Default() Config {
 			WaitForNodes: 5 * time.Minute,
 			Command:      []string{"/sbin/shutdown", "-h", "+0"},
 		},
-		History: History{MaxEvents: 5000, ClockSyncTimeout: 5 * time.Minute},
+		History: History{MaxEvents: 5000, ClockSyncTimeout: 5 * time.Minute, SampleKeep: 7 * 24 * time.Hour},
 	}
 }
 
@@ -246,6 +249,9 @@ func (c *Config) Validate() error {
 	}
 	if c.History.ClockSyncTimeout < 0 {
 		bad("history.clock_sync_timeout must not be negative")
+	}
+	if c.History.SampleKeep < time.Hour {
+		bad("history.sample_keep must be at least 1h")
 	}
 	return errors.Join(errs...)
 }

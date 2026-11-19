@@ -73,7 +73,6 @@ func (m *Monitor) applyUPS(r *nut.Reading, err error, now time.Time) {
 	case nut.StateOnline:
 		m.onMains(now)
 	}
-	m.sample(st, charge, haveCharge, now)
 }
 
 // applyBatteryFlag announces the UPS asking for a new battery. A flag already

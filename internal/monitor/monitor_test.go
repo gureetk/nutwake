@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"github.com/gureetk/nutwake/internal/events"
 	"github.com/gureetk/nutwake/internal/nut"
 	"github.com/gureetk/nutwake/internal/probe"
+	"github.com/gureetk/nutwake/internal/samples"
 	"github.com/gureetk/nutwake/internal/state"
 )
 
@@ -63,6 +65,7 @@ type rig struct {
 	nodes  map[string]*fakeProbe
 	events *events.Store
 	state  *state.Store
+	smp    *samples.Store
 	now    time.Time
 	dir    string
 }
@@ -104,7 +107,10 @@ func newRig(t *testing.T, o rigOpts) *rig {
 		t.Fatal(err)
 	}
 	r.state = state.New(o.dir)
-	deps.Events, deps.State = r.events, r.state
+	if r.smp, err = samples.Open(filepath.Join(o.dir, "samples.jsonl"), o.clock); err != nil {
+		t.Fatal(err)
+	}
+	deps.Events, deps.State, deps.Samples = r.events, r.state, r.smp
 	if r.m, err = New(&cfg, deps); err != nil {
 		t.Fatal(err)
 	}
@@ -473,40 +479,10 @@ func TestSnapshotContents(t *testing.T) {
 	if len(s.Nodes) != 2 || s.Nodes[0].Name != "kaios" || s.Nodes[0].Probe != "icmp" {
 		t.Errorf("nodes: %+v", s.Nodes)
 	}
-	if len(s.Samples) != 1 || s.Samples[0].Charge == nil || *s.Samples[0].Charge != 97 {
-		t.Errorf("samples: %+v", s.Samples)
-	}
 	// the copy must be independent
-	s.Samples[0].State = "changed"
-	if r.m.Snapshot().Samples[0].State == "changed" {
+	s.Nodes[0].State = "changed"
+	if r.m.Snapshot().Nodes[0].State == "changed" {
 		t.Error("Snapshot shares memory with the monitor")
-	}
-}
-
-func TestSamplesAreThinnedWhenNothingChanges(t *testing.T) {
-	r := newRig(t, rigOpts{})
-	for i := 0; i < 10; i++ {
-		r.poll(5 * time.Second)
-	}
-	if n := len(r.m.Snapshot().Samples); n != 2 {
-		t.Errorf("%d samples over 50 s of steady state, want 2", n)
-	}
-	r.ups.set("OB DISCHRG", "99")
-	for i := 0; i < 5; i++ {
-		r.poll(5 * time.Second)
-	}
-	if n := len(r.m.Snapshot().Samples); n != 7 {
-		t.Errorf("%d samples, want every poll while on battery", n)
-	}
-}
-
-func TestSampleRingIsBounded(t *testing.T) {
-	r := newRig(t, rigOpts{ups: newUPS("OB DISCHRG", "100")})
-	for i := 0; i < maxSamples+50; i++ {
-		r.poll(time.Second)
-	}
-	if n := len(r.m.Snapshot().Samples); n != maxSamples {
-		t.Errorf("%d samples, want %d", n, maxSamples)
 	}
 }
 
@@ -569,7 +545,92 @@ func TestRunStopsWhenCancelled(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not return")
 	}
-	if len(r.m.Snapshot().Samples) == 0 {
+	if !r.m.Snapshot().UPS.Reachable {
 		t.Error("Run should have polled")
+	}
+}
+
+// recorded returns what the recorder holds, oldest first.
+func (r *rig) recorded() []samples.Sample {
+	r.t.Helper()
+	got, err := r.smp.Range(time.Time{}, time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	return got
+}
+
+func TestRecorderWritesChangesAndHeartbeats(t *testing.T) {
+	r := newRig(t, rigOpts{})
+	for i := 0; i < 48; i++ { // four minutes of quiet
+		r.poll(5 * time.Second)
+	}
+	if got := r.recorded(); len(got) != 1 || got[0].UPS != nut.StateOnline || *got[0].Charge != 100 ||
+		!slices.Equal(got[0].Up, []string{"kaios", "node-b"}) || got[0].Down != nil {
+		t.Fatalf("after a quiet four minutes: %+v", got)
+	}
+	r.poll(65 * time.Second) // past five minutes: heartbeat
+	if got := r.recorded(); len(got) != 2 {
+		t.Fatalf("want a heartbeat, have %d samples", len(got))
+	}
+
+	r.ups.set("OL CHRG", "99")
+	r.poll(5 * time.Second)
+	if got := r.recorded(); len(got) != 3 || *got[2].Charge != 99 {
+		t.Errorf("a charge change should be recorded: %+v", got)
+	}
+
+	r.nodes["kaios"].up.Store(false)
+	r.poll(5 * time.Second)
+	r.poll(5 * time.Second) // down_after is 2
+	got := r.recorded()
+	if last := got[len(got)-1]; !slices.Equal(last.Down, []string{"kaios"}) || !slices.Equal(last.Up, []string{"node-b"}) {
+		t.Errorf("a node going down should be recorded: %+v", last)
+	}
+}
+
+func TestRecorderWritesEveryPollOnBattery(t *testing.T) {
+	r := newRig(t, rigOpts{})
+	r.poll(0)
+	r.ups.set("OB DISCHRG", "100")
+	for i := 0; i < 6; i++ {
+		r.poll(5 * time.Second)
+	}
+	if got := r.recorded(); len(got) != 7 {
+		t.Errorf("%d samples, want one per poll while on battery", len(got))
+	}
+}
+
+func TestRecorderNotesTheUPSBeingUnreachable(t *testing.T) {
+	ups := newUPS("OL", "100")
+	r := newRig(t, rigOpts{ups: ups})
+	r.poll(0)
+	ups.fail(errors.New("refused"))
+	for i := 0; i < 3; i++ {
+		r.poll(5 * time.Second)
+	}
+	got := r.recorded()
+	last := got[len(got)-1]
+	if last.UPS != nut.StateUnreachable || last.Charge != nil {
+		t.Errorf("last sample: %+v", last)
+	}
+}
+
+func TestRecorderWaitsForTheClock(t *testing.T) {
+	var synced atomic.Bool
+	clock := clocksync.NewWith(synced.Load, time.Hour)
+	r := newRig(t, rigOpts{clock: clock})
+	r.m.now = time.Now
+	r.m.Poll(context.Background())
+	if got := r.recorded(); len(got) != 0 {
+		t.Errorf("samples shown while the clock is wrong: %+v", got)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(r.dir, "samples.jsonl")); len(raw) != 0 {
+		t.Error("samples written before the clock was set")
+	}
+	synced.Store(true)
+	r.smp.FlushNow()
+	if got := r.recorded(); len(got) != 1 {
+		t.Errorf("want the held sample once the clock is set: %+v", got)
 	}
 }

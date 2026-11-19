@@ -6,13 +6,6 @@ import (
 	"github.com/gureetk/nutwake/internal/nut"
 )
 
-// Sample is one point of the battery history.
-type Sample struct {
-	T      time.Time `json:"t"`
-	Charge *float64  `json:"charge,omitempty"`
-	State  nut.State `json:"state"`
-}
-
 // Snapshot is the monitor's view of the world at one moment. It is what the
 // status page and the waker read.
 type Snapshot struct {
@@ -24,7 +17,6 @@ type Snapshot struct {
 	UPS      UPSStatus     `json:"ups"`
 	Nodes    []NodeStatus  `json:"nodes"`
 	Outage   *OutageStatus `json:"outage,omitempty"`
-	Samples  []Sample      `json:"samples"`
 }
 
 // UPSStatus is the UPS as last read.
@@ -63,15 +55,15 @@ type OutageStatus struct {
 	LowBattery  bool      `json:"low_battery,omitempty"`
 }
 
-// Brief is the part of a Snapshot that does not grow with time: cheap enough
-// for the waker to read every second.
+// Brief is the small part of a Snapshot: cheap enough for the waker to read
+// every second.
 type Brief struct {
 	Started time.Time    `json:"started"`
 	UPS     UPSStatus    `json:"ups"`
 	Nodes   []NodeStatus `json:"nodes"`
 }
 
-// Brief returns the UPS and node status without the battery samples.
+// Brief returns the UPS and node status without the outage detail.
 func (m *Monitor) Brief() Brief {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -121,7 +113,6 @@ func (m *Monitor) Snapshot() Snapshot {
 		ClockSet: m.clock.Trusted(),
 		UPS:      b.UPS,
 		Nodes:    b.Nodes,
-		Samples:  make([]Sample, len(m.samples)),
 	}
 	// A power cut whose end is waiting for the clock has ended as far as the
 	// reader is concerned.
@@ -135,10 +126,6 @@ func (m *Monitor) Snapshot() Snapshot {
 			NodesUp: append([]string(nil), o.NodesUp...), LowBattery: o.LowBattery,
 		}
 	}
-	for i, p := range m.samples {
-		p.T = m.fix(p.T)
-		s.Samples[i] = p
-	}
 	return s
 }
 
@@ -147,28 +134,4 @@ func num(r *nut.Reading, name string) *float64 {
 		return &v
 	}
 	return nil
-}
-
-// sample records a battery point: every poll while off mains or when the
-// reading changed, otherwise every sampleEvery.
-func (m *Monitor) sample(st nut.State, charge float64, haveCharge bool, now time.Time) {
-	if n := len(m.samples); n > 0 {
-		last := m.samples[n-1]
-		changed := last.State != st
-		if haveCharge && last.Charge != nil && *last.Charge != charge {
-			changed = true
-		}
-		onBattery := st == nut.StateOnBattery || st == nut.StateLowBattery
-		if !changed && !onBattery && now.Sub(last.T) < sampleEvery {
-			return
-		}
-	}
-	p := Sample{T: now, State: st}
-	if haveCharge {
-		p.Charge = &charge
-	}
-	m.samples = append(m.samples, p)
-	if len(m.samples) > maxSamples {
-		m.samples = append([]Sample(nil), m.samples[len(m.samples)-maxSamples:]...)
-	}
 }

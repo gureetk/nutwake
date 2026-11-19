@@ -80,6 +80,7 @@ func TestParseRejectsProblems(t *testing.T) {
 		"poll too fast":  minimal + "\npoll_interval: 100ms\n",
 		"bad listen":     minimal + "\nlisten: nonsense\n",
 		"bad broadcast":  minimal + "\nwake: {broadcast: \"10.0.0.255\"}\n",
+		"short keep":     minimal + "\nhistory: {sample_keep: 10m}\n",
 	}
 	for name, in := range cases {
 		t.Run(name, func(t *testing.T) {
