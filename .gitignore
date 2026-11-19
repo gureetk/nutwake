@@ -1,6 +1,8 @@
 # build output
 /nutwake
 /dist/
+/_site/
+__pycache__/
 *.test
 coverage.out
 

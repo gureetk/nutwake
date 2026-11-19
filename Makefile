@@ -3,7 +3,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 PKG     := ./cmd/nutwake
 DIST    := dist
 
-.PHONY: build test vet fmt-check check cross clean
+.PHONY: build test vet fmt-check check cross site clean
 
 build:
 	go build -ldflags '$(LDFLAGS)' -o nutwake $(PKG)
@@ -26,5 +26,11 @@ cross:
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags '$(LDFLAGS)' -o $(DIST)/nutwake-linux-arm64 $(PKG)
 	GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -ldflags '$(LDFLAGS)' -o $(DIST)/nutwake-linux-armv7 $(PKG)
 
+# The website: the landing page and the guide in docs/guide, built into _site/ and checked.
+# Needs Python 3 and: pip install -r site/requirements.txt
+site:
+	python3 site/build.py
+	python3 site/check.py
+
 clean:
-	rm -rf $(DIST) nutwake
+	rm -rf $(DIST) nutwake _site

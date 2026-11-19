@@ -1,0 +1,90 @@
+<div class="wrap">
+  <div class="hero">
+    <h1>Your homelab shuts down clean when the power goes, and wakes when it’s back.</h1>
+    <p class="lead">nutwake runs on a Raspberry Pi that watches your UPS through NUT. It waits until your nodes are really off before the Pi halts, wakes only the nodes the outage shut down, and records the whole thing on a read-only status page.</p>
+    <div class="cta">
+      <a class="btn" href="{{release_url}}">{{download_label}}</a>
+      <a class="btn-text" href="#status">See the status page</a>
+    </div>
+    <p class="note">{{prerelease_note}}</p>
+  </div>
+  <figure class="outage">
+    <h2>Outage on Wed Nov 18</h2>
+    <p class="what">Power was out for about 1 h 12 min. The nodes shut down at 10:31 am and were woken again by 11:32 am. The Pi was off from 10:35 am to 11:16 am, so nothing was recorded then.</p>
+    <div class="plot">{{chart}}</div>
+    <figcaption>Hatched areas are times the Pi was off, so nothing was recorded. The Pi is the thing doing the recording. Made-up data from <code>nutwake demo</code>.</figcaption>
+  </figure>
+</div>
+
+<section class="section" id="how">
+  <div class="wrap split">
+    <div class="side">
+      <h2 class="title">How a power cut plays out</h2>
+      <p class="text">The times are the ones in the chart above. Every step is something you can see on the status page afterwards. <a href="{{root}}guide/how-it-works.html">The details</a> are in the guide.</p>
+    </div>
+    <ol class="main rows timeline">
+      <li><div class="when">10:04 am</div><div class="what"><h3>Power fails</h3><p>The UPS reports it and nutwake records the power cut. The record survives a restart of nutwake or of the Pi.</p></div></li>
+      <li><div class="when">10:31 am</div><div class="what"><h3>The battery runs low</h3><p>upsmon tells the NUT client on each node to shut it down, and runs <code>nutwake shutdown</code> on the Pi, which writes down which nodes were up.</p></div></li>
+      <li><div class="when">10:35 am</div><div class="what"><h3>The Pi halts last</h3><p>nutwake waits until each node stops answering both its own check and a plain ping, then halts the Pi. It halts anyway if the wait runs out.</p></div></li>
+      <li><div class="when">11:16 am</div><div class="what"><h3>Power comes back</h3><p>The Pi boots and waits for steady power and a battery at 15%. If the battery never gets there, it wakes the nodes anyway after a time you set.</p></div></li>
+      <li><div class="when">11:27 am</div><div class="what"><h3>Only the right nodes wake</h3><p>Wake-on-LAN packets go to the nodes the outage shut down, a few seconds apart, and repeat for any that have not answered. A node you started by hand, or one that never went down, is left alone.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="status">
+  <div class="wrap">
+    <div class="split">
+      <div class="side"><h2 class="title">A status page that only reads</h2></div>
+      <div class="main">
+        <p class="text">It shows the UPS and the nodes right now, and a chart for the last power cut, the last 24 hours or the last 7 days. Where the Pi was off, the chart is hatched, because nothing was recording.</p>
+        <p class="text">It answers GET and HEAD, stores nothing it is sent, and loads nothing from outside the Pi. Every chart has a table version for screen readers, and the page has a layout for narrow screens. <a href="{{root}}guide/status-page.html">Read how it works</a>.</p>
+        <p class="try">Try it without a UPS:</p>
+        <pre><code>nutwake demo</code></pre>
+      </div>
+    </div>
+    <div class="shot" tabindex="0" role="group" aria-label="Screenshot of the status page, scrolls sideways on a narrow screen">
+      <img src="{{root}}assets/status-outages.png" width="1120" height="435" alt="The outages table and event log on the status page. A power cut on Nov 18 lasted about 1 h 12 min, and the nodes shut down, then woke again by 11:32 am. Two older outages are marked as ridden through.">
+    </div>
+  </div>
+</section>
+
+<section class="band" id="install">
+  <div class="wrap split">
+    <div class="side wide">
+      <h2 class="title">Install it on a Pi</h2>
+      <p class="text">You need a Pi, or any Linux machine, that can reach the UPS through NUT, and nodes on the same network segment as the Pi, because the wake packet is a broadcast. Wake-on-LAN has to be switched on in each node’s BIOS and network card.</p>
+      <div class="panel">
+        <span class="pill">Pre-release</span>
+        <p>{{version_label}} has been tested with a fake UPS and fake nodes, through a whole power cut from the first loss of mains to the wake packets. It has not run against a real UPS and real nodes. The systemd unit, ping with its capability, and Wake-on-LAN on real network cards are the parts those tests cannot cover. Run <code>nutwake check</code>, then pull the plug once before you trust it.</p>
+      </div>
+      <div class="cta">
+        <a class="btn" href="{{release_url}}">{{download_label}}</a>
+        <a class="btn-text" href="{{root}}guide/install.html">Read the full guide</a>
+      </div>
+      <p class="fine">Each release has the three binaries and a <code>SHA256SUMS</code> file to check them against.</p>
+    </div>
+    <ol class="main rows steps">
+      <li><div class="num">1</div><div class="body"><h3>Install the binary</h3><p>Download the one for your Pi: <code>nutwake-linux-arm64</code> for a 64-bit system, <code>nutwake-linux-armv7</code> for a 32-bit one.</p></div></li>
+      <li><div class="num">2</div><div class="body"><h3>Create the user it runs as</h3><p>A systemd sysusers file creates the nutwake user and its data folder.</p></div></li>
+      <li><div class="num">3</div><div class="body"><h3>Write the configuration</h3><p>Only the list of nodes is required. Every setting is explained in <code>config.example.yaml</code>.</p></div></li>
+      <li><div class="num">4</div><div class="body"><h3>Check it</h3><p>It tests the configuration, reads the UPS, pings each node and finds the halt command, and says what is wrong in plain words.</p><pre><code>sudo -u nutwake nutwake check</code></pre></div></li>
+      <li><div class="num">5</div><div class="body"><h3>Start the daemon</h3><p>A systemd unit runs it and serves the status page.</p></div></li>
+      <li><div class="num">6</div><div class="body"><h3>Hand the shutdown to nutwake</h3><p>One <code>SHUTDOWNCMD</code> line in <code>upsmon.conf</code>. Then see what it would do, without doing it.</p><pre><code>sudo nutwake shutdown --dry-run</code></pre></div></li>
+      <li><div class="num">7</div><div class="body"><h3>Pull the plug</h3><p>Nothing replaces this. With the nodes running, unplug the UPS from the wall, watch the status page, and plug it back in once the nodes are off and the Pi has halted.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="limits">
+  <div class="wrap split">
+    <div class="side"><h2 class="title">What it won’t do</h2><p class="text"><a href="{{root}}guide/limits.html">What to check before you rely on it</a></p></div>
+    <ul class="main rows">
+      <li><h3>Log you in, or change anything</h3><p>The status page is read-only on purpose. The shutdown command runs as root, so a page that could change settings would be a way to run commands on the Pi. Settings live in the configuration file. The page has no login, so keep it on your LAN.</p></li>
+      <li><h3>Watch more than one UPS</h3><p>It is one UPS and one Pi, with no clustering and no second watcher. If the Pi is off when the power comes back, nothing wakes the nodes.</p></li>
+      <li><h3>Send alerts</h3><p>It records and shows. It does not send email or messages.</p></li>
+      <li><h3>Switch the UPS off</h3><p>nutwake halts the Pi. Switching the UPS off is NUT’s job, through upsmon and the UPS driver.</p></li>
+      <li><h3>Wait longer than the battery lasts</h3><p><code>shutdown.wait_for_nodes</code> has to fit in what the UPS has left after the low-battery signal. The default is 5 minutes, so check how long yours really lasts.</p></li>
+    </ul>
+  </div>
+</section>

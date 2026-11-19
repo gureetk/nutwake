@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<link rel="icon" href="{{root}}assets/mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{{root}}assets/mark.png">
+<link rel="preload" href="{{root}}assets/fonts/instrument-sans-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{root}}assets/site.css">
+</head>
+<body id="top">
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="{{root}}index.html" aria-label="nutwake, home">{{logo}}</a>
+      <div class="topnav">
+        <a href="{{root}}index.html#how">How it works</a>
+        <a href="{{root}}index.html#status">Status page</a>
+        <a href="{{root}}index.html#install">Install</a>
+        <a href="{{root}}index.html#limits">Limits</a>
+        <a href="{{root}}guide/index.html"{{guide_current}}>Guide</a>
+        <a href="{{repo}}">GitHub</a>
+      </div>
+    </nav>
+  </div>
+</header>
+<main id="main">
+{{content}}
+</main>
+<footer class="site-footer">
+  <div class="wrap foot">
+    <div class="foot-about">
+      {{mark}}
+      <p>nutwake is open source under the MIT licence. This site is set in Instrument Sans, under the SIL Open Font License.</p>
+    </div>
+    <div class="foot-links">
+      <a href="{{repo}}">GitHub</a>
+      <a href="{{repo}}/releases">Releases</a>
+      <a href="{{repo}}/blob/main/LICENSE">Licence</a>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

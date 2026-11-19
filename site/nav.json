@@ -1,0 +1,4 @@
+[
+  {"group": "Set up", "pages": ["install", "nut", "wake-on-lan"]},
+  {"group": "Understand", "pages": ["how-it-works", "commands", "status-page", "security", "limits"]}
+]

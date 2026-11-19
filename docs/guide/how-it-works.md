@@ -1,0 +1,9 @@
+# How it works
+
+The timeline on the website and the diagram in the README show a power cut from start to finish. These are the details behind each part, with the settings that control them.
+
+- **A power cut is recorded** as soon as the UPS reports it, and the record survives a restart of nutwake or the Pi.
+- **A node counts as down** after `probe.down_after` failed checks in a row. The check is a ping (`icmp`) or a connection to a port (`tcp:8006` is a good "Proxmox has finished booting" check).
+- **The shutdown helper** (`nutwake shutdown`) is what upsmon runs when the battery is low. It writes down the nodes that were up when power was lost and any that are up now, waits up to `shutdown.wait_for_nodes` for them to power off, and then halts the Pi. A node is off only when both its own check and a plain ping get no answer. The Pi halts even if the wait ran out, the history cannot be written, or the configuration cannot be read.
+- **Waking** starts after the Pi boots. The nodes on the list are woken only when the UPS is on mains and has been for `wake.delay`, and the battery is at `wake.min_battery` (15% unless you change it). If the battery never gets there, the nodes are woken anyway after `wake.max_wait`. Packets are spaced by `wake.stagger`, repeated every `wake.retry_interval` for nodes that have not answered, and given up on after `wake.give_up_after`. If power fails again while this is going on, it waits again. A node you started by hand, or one that never went down, is left alone.
+- **The Pi has no clock battery.** After a boot its clock is wrong until it reaches an NTP server, so events and battery readings are held back until the clock is set and then written with the right time. If the clock is still unset after `history.clock_sync_timeout`, they are written anyway and marked as such.
