@@ -1,0 +1,15 @@
+# Lines for /etc/nut/upsmon.conf on the Pi (the NUT master).
+#
+# Replace the default shutdown command with the nutwake helper. When the UPS
+# says the battery is low, upsmon runs it as root: it waits for the nodes to
+# power off, writes down which ones to wake later, then halts this Pi.
+SHUTDOWNCMD "/usr/local/bin/nutwake shutdown -config /etc/nutwake/config.yaml"
+
+# As the master, upsmon first tells the nodes' own NUT clients to shut down and
+# waits for them to log out (up to HOSTSYNC, 15 seconds unless you change it),
+# and only then runs SHUTDOWNCMD. The helper then waits for the nodes to be
+# truly off, which is the part upsmon does not do.
+
+# Keep /etc/nutwake/config.yaml owned by root and not writable by anyone else.
+# The helper runs as root, so it ignores shutdown.command from a config file
+# that other users could have changed.

@@ -1,0 +1,2 @@
+# Install as /usr/lib/sysusers.d/nutwake.conf, then run: systemd-sysusers
+u nutwake - "nutwake daemon" /var/lib/nutwake -
