@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/gureetk/nutwake/internal/probe"
 )
 
 // DefaultPath is where nutwake looks for its config when -config is not given.
@@ -258,17 +260,8 @@ func (c *Config) ProbeSpec(n Node) string {
 
 // ValidateProbeSpec accepts "icmp" or "tcp:<port>".
 func ValidateProbeSpec(spec string) error {
-	switch {
-	case spec == "icmp":
-		return nil
-	case strings.HasPrefix(spec, "tcp:"):
-		var port int
-		if _, err := fmt.Sscanf(spec[4:], "%d", &port); err != nil || port < 1 || port > 65535 || fmt.Sprint(port) != spec[4:] {
-			return fmt.Errorf("invalid port in %q", spec)
-		}
-		return nil
-	}
-	return fmt.Errorf("%q is not \"icmp\" or \"tcp:<port>\"", spec)
+	_, err := probe.ParseSpec(spec)
+	return err
 }
 
 // ParseMAC parses a 6-byte MAC address in colon, dash or dot notation.
